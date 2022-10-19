@@ -12,11 +12,11 @@ import (
 type Clerk struct {
 	addr       string
 	serverAddr []string
-	hash       *consistenthash.ConsistentHash
+	hash       *consistenthash.MultiHash
 }
 
 func New(addr string, servers []string) *Clerk {
-	hash := consistenthash.NewConsistentHash()
+	hash := consistenthash.NewMultiHash(50)
 	hash.AddServer(servers...)
 	return &Clerk{
 		addr:       addr,
@@ -30,14 +30,10 @@ func (c *Clerk) Log(format string, v ...interface{}) {
 	log.Printf("[Server %s] %s", c.addr, fmt.Sprintf(format, v...))
 }
 
-func (c *Clerk) key2idx(key string) int {
-	return int(c.hash.GetServer(key))
-}
-
 func (c *Clerk) Get(key string) ([]byte, error) {
 	u := fmt.Sprintf(
 		"http://%v/%v",
-		c.serverAddr[c.key2idx(key)],
+		c.hash.GetServer(key),
 		url.QueryEscape(key),
 	)
 	res, err := http.Get(u)
