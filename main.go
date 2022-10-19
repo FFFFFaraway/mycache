@@ -1,35 +1,29 @@
 package main
 
-/*
-   $ curl http://localhost:9999/Tom
-   630
-
-   $ curl http://localhost:9999/kkk
-   kkk not exist
-*/
-
 import (
 	"log"
-	"mycache/handler"
+	"mycache/clerk"
+	"mycache/db"
+	"mycache/server"
 	"net/http"
 )
 
-var db = map[string]string{
-	"Tom":  "630",
-	"Jack": "589",
-	"Sam":  "567",
-}
-
 func main() {
 	addr := "localhost:9999"
-	h := handler.New(addr, 2, func(key string) any {
-		log.Println("[SlowDB] search key", key)
-		v, exist := db[key]
-		if !exist {
-			return nil
-		}
-		return v
-	})
-	log.Println("cache is running at", addr)
-	log.Fatal(http.ListenAndServe(addr, h))
+	servers := []string{
+		"localhost:8001",
+		"localhost:8002",
+		"localhost:8003",
+	}
+	for _, s := range servers {
+		go func(addr string) {
+			s := server.New(addr, 2, db.Load)
+			log.Println("cache server is running at", addr)
+			log.Fatal(http.ListenAndServe(addr, s))
+		}(s)
+	}
+
+	c := clerk.New(addr, servers)
+	log.Println("cache clerk is running at", addr)
+	log.Fatal(http.ListenAndServe(addr, c))
 }
